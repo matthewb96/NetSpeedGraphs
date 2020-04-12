@@ -8,6 +8,9 @@ pylint = "*"
 
 [packages]
 speedtest-cli = "*"
+bokeh = "*"
+numpy = "*"
+pandas = ">=1"
 
 [requires]
 python_version = "3.8"
