@@ -48,10 +48,15 @@ def plotGraph(data):
     Parameters
     ----------
     data: pandas.DataFrame
-        Containing index column of datetime objects and 3 columns:
-            - Ping
-            - Download
-            - Upload
+        DataFrame containing 4 columns:
+            - Time: datetime objects for the time the test was ran.
+            - Ping: ping in milliseconds.
+            - Download: download speed in megabits per second.
+            - Upload: upload speed in megabits per second.
+    
+    See Also
+    --------
+    readResults
     """
     # output to static HTML file
     output_file(HTML_PATH)
@@ -125,9 +130,28 @@ def storeResults(results):
     header = not DATA_PATH.exists()
     with open(DATA_PATH, 'at') as out:
         if header:
-            out.writelines(', '.join(DATA_HEADER) + '\n')
-        out.write(', '.join(row) + '\n')
+            out.writelines(','.join(DATA_HEADER) + '\n')
+        out.write(','.join(row) + '\n')
     return
+
+def readResults():
+    """ Read the csv containing all the results into a DataFrame.
+    
+    The `DATA_PATH` and `DATA_HEADER` constants are used when reading the csv.
+    
+    Returns
+    -------
+    data: pandas.DataFrame
+        DataFrame containing 4 columns:
+            - Time: datetime objects for the time the test was ran.
+            - Ping: ping in milliseconds.
+            - Download: download speed in megabits per second.
+            - Upload: upload speed in megabits per second.
+    """
+    data = pd.read_csv(DATA_PATH, usecols=DATA_HEADER, parse_dates=[0])
+    rename = {i: i.split()[0].strip().capitalize() for i in DATA_HEADER}
+    data = data.rename(columns=rename)
+    return data
 
 ##### MAIN #####
 if __name__ == '__main__':
@@ -137,19 +161,6 @@ if __name__ == '__main__':
     print(f'Download:\t{netRes[1]:.2f}Mbs')
     print(f'Upload:\t{netRes[2]:.2f}Mbs')
 
-    # Create test data
-    N = 100
-    times = np.array([datetime.now() + i * timedelta(minutes=30) for i in range(N)])
-    # times = np.arange(N)
-    # Create random array +/- d around x
-    randomArray = lambda x, d: x + (2 * d * (np.random.rand(N) - 0.5))
-    pings = randomArray(netRes[0], 2)
-    downloads = randomArray(netRes[1], 10)
-    uploads = randomArray(netRes[2], 5)
-    # Create dataframe of test data
-    test = pd.DataFrame(index=times, data={'Ping': pings,
-                                           'Download': downloads,
-                                           'Upload': uploads})
-    test.index.name = 'Time'
+    results = readResults()
     # Plot the graph
-    plotGraph(test)
+    plotGraph(results)
