@@ -6,20 +6,19 @@
 # Standard imports
 from pathlib import Path
 from datetime import datetime, timedelta
+from argparse import ArgumentParser
 
 # Third party imports
 import speedtest
 import numpy as np
 import pandas as pd
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, output_file, save
 from bokeh.models.formatters import DatetimeTickFormatter
 from bokeh.models import (ColumnDataSource, DataTable, TableColumn,
                           NumberFormatter, DateFormatter)
 from bokeh.layouts import grid
 
 ##### CONSTANTS #####
-HTML_PATH = Path('network_graphs.html')
-DATA_PATH = Path('network_data.csv')
 DATA_HEADER = ['Time', 'Ping (ms)', 'Download Speed (Mbs)',
                'Upload Speed (Mbs)']
 
@@ -42,7 +41,7 @@ def allTests():
     up = st.upload()
     return server['latency'], down / 1e6, up / 1e6
 
-def plotGraph(data):
+def plotGraph(data, path):
     """ Plots a graph with the download and upload speeds and pings.
 
     Parameters
@@ -53,13 +52,15 @@ def plotGraph(data):
             - Ping: ping in milliseconds.
             - Download: download speed in megabits per second.
             - Upload: upload speed in megabits per second.
-    
+    path: pathlib Path
+        Path to html file for outputting plots to.
+
     See Also
     --------
     readResults
     """
     # output to static HTML file
-    output_file(HTML_PATH)
+    output_file(path)
 
     # Use the pandas dataframe as the source
     source = ColumnDataSource(data)
@@ -102,10 +103,10 @@ def plotGraph(data):
     layout = grid([netPlot, table], ncols=2)
 
     # show the results
-    show(layout)
+    save(layout)
     return
 
-def storeResults(results):
+def storeResults(results, path):
     """ Save the network speed results to CSV containing all results.
 
     Will create a CSV if it doesn't exist, or append results to it if it does.
@@ -115,6 +116,8 @@ def storeResults(results):
     results: list-like of floats
         The results from a single run of the network test in the following
         order: ping (miliseconds), download speed (Mbs) and upload speed (Mbs).
+    path: pathlib Path
+        Path to csv file for saving results to.
 
     See Also
     --------
@@ -127,18 +130,23 @@ def storeResults(results):
 
     # Check if file exists and create it with header if not
     # then append current results to it
-    header = not DATA_PATH.exists()
-    with open(DATA_PATH, 'at') as out:
+    header = not path.exists()
+    with open(path, 'at') as out:
         if header:
             out.writelines(','.join(DATA_HEADER) + '\n')
         out.write(','.join(row) + '\n')
     return
 
-def readResults():
+def readResults(path):
     """ Read the csv containing all the results into a DataFrame.
     
     The `DATA_PATH` and `DATA_HEADER` constants are used when reading the csv.
     
+    Parameters
+    ----------
+    path: pathlib Path
+        Path to csv file for reading from.
+
     Returns
     -------
     data: pandas.DataFrame
@@ -148,19 +156,39 @@ def readResults():
             - Download: download speed in megabits per second.
             - Upload: upload speed in megabits per second.
     """
-    data = pd.read_csv(DATA_PATH, usecols=DATA_HEADER, parse_dates=[0])
+    data = pd.read_csv(path, usecols=DATA_HEADER, parse_dates=[0])
     rename = {i: i.split()[0].strip().capitalize() for i in DATA_HEADER}
     data = data.rename(columns=rename)
     return data
 
+def argParser():
+    """ Creates an ArgumentParser to get output locations. 
+    
+    Returns
+    -------
+    parser: argparse ArgumentParser
+        Parser to get the output file locations from the arguments.
+    """
+    parser = ArgumentParser(description='Run a network test and update html plots.')
+    parser.add_argument('data_file', type=Path,
+                        help='csv file for storing all network test results.')
+    parser.add_argument('html_file', type=Path,
+                        help='html file for saving the output plots to.')
+    return parser
+
+def main():
+    """ Runs the network test to get results then updates the csv and graphs. """
+    # Get file locations from arguments
+    parser = argParser()
+    args = parser.parse_args()
+    
+    # Run a test and update the graphs
+    netRes = allTests()
+    storeResults(netRes, args.data_file)
+    results = readResults(args.data_file)
+    plotGraph(results, args.html_file)
+    return
+
 ##### MAIN #####
 if __name__ == '__main__':
-    netRes = allTests()
-    storeResults(netRes)
-    print(f'Ping:\t{netRes[0]:.2f}ms')
-    print(f'Download:\t{netRes[1]:.2f}Mbs')
-    print(f'Upload:\t{netRes[2]:.2f}Mbs')
-
-    results = readResults()
-    # Plot the graph
-    plotGraph(results)
+    main()
