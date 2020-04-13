@@ -4,6 +4,7 @@
 
 ##### IMPORTS #####
 # Standard imports
+from pathlib import Path
 from datetime import datetime, timedelta
 
 # Third party imports
@@ -15,6 +16,12 @@ from bokeh.models.formatters import DatetimeTickFormatter
 from bokeh.models import (ColumnDataSource, DataTable, TableColumn,
                           NumberFormatter, DateFormatter)
 from bokeh.layouts import grid
+
+##### CONSTANTS #####
+HTML_PATH = Path('network_graphs.html')
+DATA_PATH = Path('network_data.csv')
+DATA_HEADER = ['Time', 'Ping (ms)', 'Download Speed (Mbs)',
+               'Upload Speed (Mbs)']
 
 ##### FUNCTIONS #####
 def allTests():
@@ -47,7 +54,7 @@ def plotGraph(data):
             - Upload
     """
     # output to static HTML file
-    output_file("test.html")
+    output_file(HTML_PATH)
 
     # Use the pandas dataframe as the source
     source = ColumnDataSource(data)
@@ -93,10 +100,39 @@ def plotGraph(data):
     show(layout)
     return
 
+def storeResults(results):
+    """ Save the network speed results to CSV containing all results.
+
+    Will create a CSV if it doesn't exist, or append results to it if it does.
+
+    Parameters
+    ----------
+    results: list-like of floats
+        The results from a single run of the network test in the following
+        order: ping (miliseconds), download speed (Mbs) and upload speed (Mbs).
+
+    See Also
+    --------
+    allTests
+    """
+    # Get current time of results
+    now = datetime.now()
+    # Create row of results
+    row = [now.isoformat(), *[str(i) for i in results]]
+
+    # Check if file exists and create it with header if not
+    # then append current results to it
+    header = not DATA_PATH.exists()
+    with open(DATA_PATH, 'at') as out:
+        if header:
+            out.writelines(', '.join(DATA_HEADER) + '\n')
+        out.write(', '.join(row) + '\n')
+    return
 
 ##### MAIN #####
 if __name__ == '__main__':
     netRes = allTests()
+    storeResults(netRes)
     print(f'Ping:\t{netRes[0]:.2f}ms')
     print(f'Download:\t{netRes[1]:.2f}Mbs')
     print(f'Upload:\t{netRes[2]:.2f}Mbs')

@@ -130,3 +130,7 @@ dmypy.json
 
 # VS Code folder
 .vscode
+
+# Tool outputs
+*.csv
+*.html
